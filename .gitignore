@@ -1,0 +1,22 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.env
+
+# Model files
+*.pkl
+*.pt
+*.h5
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Data files (optional – keep only if large or sensitive)
+dataset/
