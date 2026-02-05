@@ -1,172 +1,239 @@
-# 🧠 NLP-Based Log Classification System
+# Log Classification System Using NLP
 
-## 📌 Overview
+A multi-stage log classification system that uses Natural Language Processing techniques to automatically categorize system logs from various sources.
 
-This project implements a **hybrid NLP-driven log classification pipeline** that efficiently categorizes system and application logs by combining **rule-based methods** with **machine learning and NLP techniques**.
+## 📋 Project Overview
 
-The system is designed to **minimize cost and latency** by applying simple techniques first (regex-based classification) and escalating to more advanced models only for unknown or complex log messages. This approach closely mirrors **real-world log analysis architectures** used in cloud platforms and enterprise monitoring systems.
+This project implements an intelligent log classification pipeline that combines three different approaches:
 
----
+1. **Regex-based Classification** - Fast pattern matching for well-defined log formats
+2. **BERT-based Classification** - ML model using sentence embeddings for complex patterns
+3. **LLM-based Classification** - (TODO) For legacy system logs with unpredictable formats
 
-## 🎯 Problem Statement
+## 🎯 Classification Categories
 
-Modern distributed systems generate **large volumes of logs** that are:
+The system classifies logs into 9 categories:
 
-- Highly repetitive for known issues
-- Semi-structured with minor variations
-- Continuously evolving with new error patterns
+- **User Action** - User login/logout, account creation
+- **System Notification** - Backups, updates, file uploads
+- **HTTP Status** - API request/response logs
+- **Critical Error** - Severe system failures
+- **Error** - General errors
+- **Security Alert** - Unauthorized access attempts
+- **Resource Usage** - Memory, CPU, disk usage logs
+- **Workflow Error** - Process/workflow failures
+- **Deprecation Warning** - Deprecated feature usage
 
-Using heavyweight AI models on every log message is:
-- Computationally expensive
-- Slower at scale
-- Often unnecessary for known patterns
+## 🏗️ Project Structure
 
-This project addresses the problem by building a **layered log classification framework** that balances **accuracy, scalability, and cost efficiency**.
-
----
-
-## 🏗️ High-Level Architecture
-
-
-
-Log Message
-↓
-Regex-Based Classification
-├── Known Pattern → Assigned Label
-└── Unknown
-↓
-Sentence Embeddings
-↓
-DBSCAN Clustering
-↓
-Cluster Analysis
-↓
-(Future) BERT / LLM-Based Classification
-
-
-
-
----
-
-## ⚙️ Current Features
-
-- ✅ Regex-based log pattern matching
-- ✅ Identification of unmatched (unknown) log messages
-- ✅ Semantic embeddings using transformer models
-- ✅ DBSCAN clustering to group similar unknown logs
-- ✅ Cluster-size analysis to evaluate training data sufficiency
-- ✅ Support for synthetic datasets for experimentation
-
----
-
-## 🚧 Features Under Development
-
-- 🔄 Automatic regex pattern inference from log clusters
-- 🔄 Threshold-based decision for “enough training samples”
-- 🔄 Supervised classification using BERT for stable log classes
-- 🔄 LLM-based classification for rare or unseen logs
-- 🔄 Feedback loop to convert ML/LLM outputs into new regex rules
-
----
-
-## 📁 Project Structure
-
-
-
-
-classification_logs/
-│
+```
+Log_classification_system_NLP_Personal_project/
 ├── training/
-│ ├── dataset/
-│ │ └── synthetic_logs.csv
-│ └── training.ipynb
-│
-├── main.py
-├── README.md
-└── .gitignore
+│   ├── training.ipynb           # Model training and data exploration
+│   ├── processor_regex.py       # Regex-based classifier
+│   ├── processor_bert.py        # BERT-based classifier
+│   ├── processor_llm.py         # LLM-based classifier (TODO)
+│   └── classify.py              # Multi-stage classification pipeline
+├── models/
+│   └── log_classification_model.pkl  # Trained Logistic Regression model
+├── synthetic_logs.csv           # Training dataset (2,410 logs)
+├── main.py                      # Entry point (to be implemented)
+├── README.md                    # Project documentation
+└── .gitignore                   # Git ignore file
+```
 
+## 🚀 Getting Started
 
+### Prerequisites
 
+```bash
+pip install pandas
+pip install numpy
+pip install scikit-learn
+pip install sentence-transformers
+pip install joblib
+```
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd Log_classification_system_NLP_Personal_project
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Test the classifiers:
+```bash
+# Test regex classifier
+python training/processor_regex.py
+
+# Test BERT classifier
+python training/processor_bert.py
+
+# Test full pipeline
+python training/classify.py
+```
+
+## 📊 Dataset
+
+- **Source**: `synthetic_logs.csv`
+- **Total Records**: 2,410 logs
+- **Sources**: ModernCRM, AnalyticsEngine, ModernHR, BillingSystem, ThirdPartyAPI, LegacyCRM
+- **Features**:
+  - `timestamp`: Log timestamp
+  - `source`: Source system
+  - `log_message`: The actual log text
+  - `target_label`: Ground truth classification
+
+### Category Distribution
+
+```
+HTTP Status         : 1,017 logs (42%)
+Security Alert      : 371 logs (15%)
+System Notification : 356 logs (15%)
+Error               : 177 logs (7%)
+Resource Usage      : 177 logs (7%)
+Critical Error      : 161 logs (7%)
+User Action         : 144 logs (6%)
+Workflow Error      : 4 logs (<1%)
+Deprecation Warning : 3 logs (<1%)
+```
+
+## 🧠 Model Architecture
+
+### 1. Regex Classifier (`processor_regex.py`)
+
+- **Speed**: Very Fast
+- **Accuracy**: 100% for matched patterns
+- **Use Case**: Well-defined log patterns
+- **Patterns**: 8 regex patterns for User Actions and System Notifications
+
+### 2. BERT Classifier (`processor_bert.py`)
+
+- **Model**: `all-MiniLM-L6-v2` (SentenceTransformer)
+- **Embedding Size**: 384 dimensions
+- **Classifier**: Logistic Regression
+- **Training Size**: 1,687 logs
+- **Test Size**: 723 logs
+- **Accuracy**: 99% on test set
+- **Confidence Threshold**: 50% (returns "Unclassified" if below)
+
+### 3. Multi-stage Pipeline (`classify.py`)
+
+The classification pipeline follows this logic:
+
+```
+Input Log
+    ↓
+Is source "LegacyCRM"?
+    ├── Yes → Use LLM (TODO)
+    └── No  → Try Regex
+                ↓
+        Regex Matched?
+            ├── Yes → Return Label
+            └── No  → Use BERT → Return Label
+```
+
+## 📈 Model Performance
+
+### BERT Classifier Results
+
+```
+                     precision    recall  f1-score   support
+
+     Critical Error       0.96      0.98      0.97        48
+              Error       1.00      0.94      0.97        53
+        HTTP Status       1.00      1.00      1.00       305
+     Resource Usage       1.00      1.00      1.00        53
+     Security Alert       0.99      1.00      1.00       112
+System Notification       0.97      1.00      0.99       107
+        User Action       1.00      1.00      1.00        43
+
+           accuracy                           0.99       723
+```
+
+## 💡 Usage Examples
+
+### Using Individual Classifiers
+
+```python
+from training.processor_regex import classify_with_regex
+from training.processor_bert import classify_with_bert
+
+# Regex classification (fast, for known patterns)
+log = "User User123 logged in."
+label = classify_with_regex(log)
+print(label)  # Output: User Action
+
+# BERT classification (ML-based, for complex patterns)
+log = "Multiple failed authentication attempts detected"
+label = classify_with_bert(log)
+print(label)  # Output: Security Alert
+```
+
+### Using the Full Pipeline
+
+```python
+from training.classify import classify_logs
+
+# Classify a log from ModernCRM
+source = "ModernCRM"
+log_msg = "Backup completed successfully."
+label = classify_logs(source, log_msg)
+print(f"{log_msg} --> {label}")
+# Output: Backup completed successfully. --> System Notification
+```
+
+## 🔧 Model Training
+
+The model was trained using the following approach:
+
+1. **Data Loading**: Load 2,410 logs from `synthetic_logs.csv`
+2. **Embedding Generation**: Convert logs to 384-dim vectors using SentenceTransformer
+3. **Train/Test Split**: 70/30 split with stratification
+4. **Model Training**: Logistic Regression with max_iter=1000
+5. **Evaluation**: Achieved 99% accuracy on test set
+6. **Model Saving**: Saved to `models/log_classification_model.pkl`
+
+To retrain the model, run the cells in `training/training.ipynb`.
+
+## 📝 TODO / Future Enhancements
+
+- [ ] Implement LLM-based classification for LegacyCRM logs
+- [ ] Add real-time log streaming capability
+- [ ] Create a web dashboard for log monitoring
+- [ ] Add support for custom regex patterns
+- [ ] Implement model retraining pipeline
+- [ ] Add logging and error handling
+- [ ] Create API endpoints for classification service
+- [ ] Add unit tests
+- [ ] Deploy as a microservice
+
+## 🤝 Contributing
+
+This is a personal project. Contributions, issues, and feature requests are welcome!
+
+## 📄 License
+
+This project is for educational purposes.
+
+## 👤 Author
+
+**Your Name**
+- Project: Log Classification System
+- Date: February 2026
+
+## 🙏 Acknowledgments
+
+- SentenceTransformers library for BERT embeddings
+- Scikit-learn for ML models
+- OpenStack Nova logs for inspiration
 
 ---
 
-## 🛠️ Tech Stack
-
-- **Python**
-- **Regular Expressions (Regex)**
-- **Pandas**
-- **SentenceTransformers**
-- **DBSCAN (scikit-learn)**
-- **Jupyter Notebook**
-- *(Planned)* BERT, LLM APIs
-
----
-
-## 🧩 Why DBSCAN?
-
-DBSCAN is used for clustering unknown logs because:
-
-- It does not require a predefined number of clusters
-- It groups logs based on semantic similarity
-- It naturally handles noise and rare events
-- It works well for evolving and unknown log patterns
-
----
-
-## 🧪 Example Use Case
-
-Sample logs:
-
-
-"ERROR: Database connection timeout"
-"DB timeout while connecting to read replica"
-
-
-
-These logs are:
-- Embedded into vector space
-- Clustered together using DBSCAN
-- Treated as a single semantic log pattern
-
-Such clusters can later be used to:
-- Create regex rules
-- Train supervised models
-- Improve automated alerting
-
----
-
-## 📈 Real-World Relevance
-
-The design principles in this project align with systems used in:
-
-- Cloud monitoring platforms
-- SIEM and security analytics tools
-- Observability and DevOps pipelines
-- Enterprise-scale log intelligence systems
-
----
-
-## 🚀 Project Goal
-
-To build a **self-improving log classification system** that:
-- Starts with simple rule-based logic
-- Learns from data over time
-- Adapts automatically to new log patterns
-
----
-
-## 🧑‍💻 Author
-
-**Vinay Varshigan SJ**  
-MS in Computer Science  
-Northeastern University  
-Interests: NLP, Machine Learning, Log Intelligence, AI Systems
-
----
-
-## 📌 Project Status
-
-🚧 **Active Development**  
-The project is under continuous improvement, and features may change as development progresses.
-
-
+**Last Updated**: February 5, 2026

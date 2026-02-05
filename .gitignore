@@ -9,8 +9,8 @@ __pycache__/
 venv/
 .env
 
-# Model files
-*.pkl
+# Model files (allow our trained model)
+!models/*.pkl
 *.pt
 *.h5
 
