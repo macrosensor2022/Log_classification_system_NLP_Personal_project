@@ -228,12 +228,6 @@ This project is for educational purposes.
 - Project: Log Classification System
 - Date: February 2026
 
-## 🙏 Acknowledgments
-
-- SentenceTransformers library for BERT embeddings
-- Scikit-learn for ML models
-- OpenStack Nova logs for inspiration
-
 ---
 
 **Last Updated**: February 5, 2026
