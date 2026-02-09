@@ -12,6 +12,7 @@ Date: February 2026
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import joblib
+from pathlib import Path
 
 # ==================== MODEL INITIALIZATION ====================
 # Load models once at module level for efficiency
@@ -21,7 +22,9 @@ import joblib
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Logistic Regression classifier: Trained on log embeddings
-clf = joblib.load('../models/log_classification_model.pkl')
+# Use dynamic path to work from any directory
+model_path = Path(__file__).parent.parent / 'models' / 'log_classification_model.pkl'
+clf = joblib.load(model_path)
 
 
 # ==================== CLASSIFICATION FUNCTION ====================

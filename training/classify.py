@@ -13,6 +13,7 @@ Date: February 2026
 from processor_regex import classify_with_regex
 from processor_bert import classify_with_bert
 
+from processor_llm import classify_with_llm
 
 # ==================== CLASSIFICATION PIPELINE ====================
 def classify_logs(source, log_msg):
@@ -35,15 +36,13 @@ def classify_logs(source, log_msg):
     if source == "LegacyCRM":
         # TODO: Implement LLM-based classification
         # For now, fall through to standard classification
+        label = classify_with_llm(log_msg)
         pass
-    
-    # Stage 1: Try regex-based classification (fast)
-    label = classify_with_regex(log_msg)
-    
-    # Stage 2: If regex didn't match, use BERT-based classification
-    if label is None:
-        label = classify_with_bert(log_msg)
-    
+    else:
+        label = classify_with_regex(log_msg)
+        if label is None:
+            label = classify_with_bert(log_msg)
+
     return label
 
 
@@ -78,6 +77,9 @@ if __name__ == "__main__":
         ("BillingSystem", "Account with ID 123 created by user 123."),
         ("BillingSystem", "Hey bro chill yaa"),  # Should use BERT
         ("LegacyCRM", "Critical system failure detected"),  # Should use LLM (TODO)
+        ("LegacyCRM", "Workflow error: Backup process failed"),
+        ("LegacyCRM", "Deprecation warning: API v1 is deprecated"),
+        ("LegacyCRM", "Unknown log message"),
     ]
     
     print("=" * 100)

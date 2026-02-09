@@ -8,7 +8,7 @@ This project implements an intelligent log classification pipeline that combines
 
 1. **Regex-based Classification** - Fast pattern matching for well-defined log formats
 2. **BERT-based Classification** - ML model using sentence embeddings for complex patterns
-3. **LLM-based Classification** - (TODO) For legacy system logs with unpredictable formats
+3. **LLM-based Classification** - Groq API with Llama 3.1 for edge cases and legacy system logs
 
 ## 🎯 Classification Categories
 
@@ -32,11 +32,13 @@ Log_classification_system_NLP_Personal_project/
 │   ├── training.ipynb           # Model training and data exploration
 │   ├── processor_regex.py       # Regex-based classifier
 │   ├── processor_bert.py        # BERT-based classifier
-│   ├── processor_llm.py         # LLM-based classifier (TODO)
-│   └── classify.py              # Multi-stage classification pipeline
+│   ├── processor_llm.py         # LLM-based classifier (Groq API)
+│   ├── classify.py              # Multi-stage classification pipeline
+│   └── .env                     # Environment variables (API keys)
 ├── models/
 │   └── log_classification_model.pkl  # Trained Logistic Regression model
 ├── synthetic_logs.csv           # Training dataset (2,410 logs)
+├── requirements.txt             # Python dependencies
 ├── main.py                      # Entry point (to be implemented)
 ├── README.md                    # Project documentation
 └── .gitignore                   # Git ignore file
@@ -67,7 +69,15 @@ cd Log_classification_system_NLP_Personal_project
 pip install -r requirements.txt
 ```
 
-3. Test the classifiers:
+3. Set up Groq API (for LLM classifier):
+   - Get a free API key from [console.groq.com](https://console.groq.com)
+   - Create a `.env` file in the `training/` directory:
+   ```bash
+   cd training
+   echo "GROQ_API_KEY=your_api_key_here" > .env
+   ```
+
+4. Test the classifiers:
 ```bash
 # Test regex classifier
 python training/processor_regex.py
@@ -75,8 +85,12 @@ python training/processor_regex.py
 # Test BERT classifier
 python training/processor_bert.py
 
+# Test LLM classifier
+python training/processor_llm.py
+
 # Test full pipeline
-python training/classify.py
+cd training
+python classify.py
 ```
 
 ## 📊 Dataset
@@ -123,7 +137,16 @@ Deprecation Warning : 3 logs (<1%)
 - **Accuracy**: 99% on test set
 - **Confidence Threshold**: 50% (returns "Unclassified" if below)
 
-### 3. Multi-stage Pipeline (`classify.py`)
+### 3. LLM Classifier (`processor_llm.py`)
+
+- **API**: Groq (groq.com)
+- **Model**: `llama-3.1-70b-versatile`
+- **Use Case**: Edge cases, Workflow Errors, Deprecation Warnings
+- **Categories**: Workflow Error, Deprecation Warning, Unclassified
+- **Authentication**: Requires GROQ_API_KEY in `.env` file
+- **Advantage**: Semantic understanding of complex log patterns
+
+### 4. Multi-stage Pipeline (`classify.py`)
 
 The classification pipeline follows this logic:
 
@@ -131,7 +154,7 @@ The classification pipeline follows this logic:
 Input Log
     ↓
 Is source "LegacyCRM"?
-    ├── Yes → Use LLM (TODO)
+    ├── Yes → Use LLM → Return Label
     └── No  → Try Regex
                 ↓
         Regex Matched?
@@ -204,7 +227,7 @@ To retrain the model, run the cells in `training/training.ipynb`.
 
 ## 📝 TODO / Future Enhancements
 
-- [ ] Implement LLM-based classification for LegacyCRM logs
+- [x] Implement LLM-based classification for LegacyCRM logs (✅ Completed with Groq API)
 - [ ] Add real-time log streaming capability
 - [ ] Create a web dashboard for log monitoring
 - [ ] Add support for custom regex patterns
