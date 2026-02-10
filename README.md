@@ -202,5 +202,5 @@ All responses use standard HTTP status codes. Errors return JSON with a `detail`
 ## 📄 License & Author
 
 This project is for **educational and portfolio use**.  
-**Author**: Your Name  
+**Author**: Vinay
 **Last updated**: February 2026
