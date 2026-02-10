@@ -4,16 +4,11 @@ A production-style, multi-stage log classification system that uses **Natural La
 
 ---
 
-## 📹 Demo Video
+## 📹 Demo
 
-Watch a walkthrough of the project: setup, classification pipeline, API, and frontend.
+![Demo](https://raw.githubusercontent.com/macrosensor2022/Log_classification_system_NLP_Personal_project/main/docs/demo.gif)
 
-<!-- Embed: replace with your hosted URL if you prefer; local path works when viewing in browser or VS Code -->
-[**▶ Watch: Log Classification Demo**](docs/Log_classification_video.mp4)
-
-<video src="docs/Log_classification_video.mp4" controls width="720" title="Log Classification Demo"></video>
-
-*If the video does not render above, open [docs/Log_classification_video.mp4](docs/Log_classification_video.mp4) directly.*
+[Full demo video](https://raw.githubusercontent.com/macrosensor2022/Log_classification_system_NLP_Personal_project/main/docs/Log_classification_video.mp4)
 
 ---
 
