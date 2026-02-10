@@ -21,8 +21,8 @@ from pathlib import Path
 # SentenceTransformer: Converts text to 384-dimensional embeddings
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Logistic Regression classifier: Trained on log embeddings
-# Use dynamic path to work from any directory
+# Logistic Regression classifier: Trained on log embeddings (see training.ipynb / retrain.py)
+# Path is relative to project root so it works when running from training/ or server
 model_path = Path(__file__).parent.parent / 'models' / 'log_classification_model.pkl'
 clf = joblib.load(model_path)
 

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Log Classification — Web UI
+  Paste logs (source,log_message per line) or upload CSV; calls API and displays results table.
+  Requires server running: uvicorn server:app --reload
+-->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log Classification</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+    h1 { margin-top: 0; }
+    section { margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: 0.25rem; font-weight: 600; }
+    input[type="file"], textarea, button { margin-bottom: 0.5rem; }
+    textarea { width: 100%; min-height: 120px; padding: 0.5rem; font-family: inherit; }
+    button { padding: 0.5rem 1rem; cursor: pointer; background: #2563eb; color: white; border: none; border-radius: 6px; }
+    button:hover { background: #1d4ed8; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .tabs button { background: #e5e7eb; color: #374151; }
+    .tabs button.active { background: #2563eb; color: white; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+    th, td { border: 1px solid #e5e7eb; padding: 0.5rem; text-align: left; }
+    th { background: #f3f4f6; font-weight: 600; }
+    tr:nth-child(even) { background: #f9fafb; }
+    .error { color: #dc2626; margin-top: 0.5rem; }
+    .hint { color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem; }
+    #metrics { background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>Log Classification</h1>
+  <p>Paste logs or upload a CSV to classify. Results show <strong>source</strong>, <strong>log_message</strong>, and <strong>target_label</strong>.</p>
+
+  <!-- Filled by loadMetrics() from GET /metrics when server is available -->
+  <div id="metrics" style="display:none;">
+    <strong>Metrics</strong>
+    <pre id="metricsBody"></pre>
+  </div>
+
+  <section aria-label="Input">
+    <div class="tabs">
+      <button type="button" class="tab active" data-panel="paste">Paste logs</button>
+      <button type="button" class="tab" data-panel="upload">Upload CSV</button>
+    </div>
+    <div id="panel-paste" class="panel active">
+      <label for="pasteInput">Paste lines (format: <code>source,log_message</code> — first line can be header)</label>
+      <textarea id="pasteInput" placeholder="ModernCRM,User User123 logged in.&#10;ModernCRM,Backup started at 2026-02-05 10:00:00.&#10;LegacyCRM,Workflow error: Backup process failed"></textarea>
+      <p class="hint">One log per line. Example: <code>ModernCRM,User User123 logged in.</code></p>
+      <button type="button" id="btnPaste">Classify pasted logs</button>
+    </div>
+    <div id="panel-upload" class="panel">
+      <label for="fileInput">CSV file with columns <code>source</code> and <code>log_message</code></label>
+      <input type="file" id="fileInput" accept=".csv" />
+      <button type="button" id="btnUpload">Classify uploaded CSV</button>
+    </div>
+    <p id="error" class="error"></p>
+  </section>
+
+  <section aria-label="Results">
+    <h2>Results</h2>
+    <div id="tableWrap" style="display:none;">
+      <table id="resultTable">
+        <thead><tr><th>source</th><th>log_message</th><th>target_label</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p id="noResults">No results yet. Paste logs or upload a CSV and click Classify.</p>
+  </section>
+
+  <script>
+    // --- DOM refs ---
+    const pasteInput = document.getElementById('pasteInput');
+    const fileInput = document.getElementById('fileInput');
+    const btnPaste = document.getElementById('btnPaste');
+    const btnUpload = document.getElementById('btnUpload');
+    const errorEl = document.getElementById('error');
+    const tableWrap = document.getElementById('tableWrap');
+    const resultTable = document.getElementById('resultTable');
+    const tbody = resultTable.querySelector('tbody');
+    const noResults = document.getElementById('noResults');
+    const metricsEl = document.getElementById('metrics');
+    const metricsBody = document.getElementById('metricsBody');
+
+    // --- Tab switching: Paste logs vs Upload CSV ---
+    document.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+        errorEl.textContent = '';
+      });
+    });
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+    }
+    function showResults(rows) {
+      noResults.style.display = 'none';
+      tableWrap.style.display = 'block';
+      tbody.innerHTML = '';
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${escapeHtml(r.source)}</td><td>${escapeHtml(r.log_message)}</td><td>${escapeHtml(r.target_label)}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    async function loadMetrics() {
+      try {
+        const r = await fetch('/metrics');
+        if (r.ok) {
+          const j = await r.json();
+          metricsEl.style.display = 'block';
+          metricsBody.textContent = JSON.stringify(j, null, 2);
+        }
+      } catch (_) {}
+    }
+
+    // --- Paste: parse source,log_message lines and POST to /classify-json ---
+    btnPaste.addEventListener('click', async () => {
+      const text = pasteInput.value.trim();
+      if (!text) {
+        showError('Paste at least one line (source,log_message).');
+        return;
+      }
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const logs = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const idx = line.indexOf(',');
+        if (idx === -1) {
+          if (i === 0 && line.toLowerCase() === 'source,log_message') continue;
+          showError('Each line must be: source,log_message');
+          return;
+        }
+        const source = line.slice(0, idx).trim();
+        const log_message = line.slice(idx + 1).trim();
+        if (i === 0 && source.toLowerCase() === 'source' && log_message.toLowerCase() === 'log_message') continue;
+        logs.push({ source, log_message });
+      }
+      if (logs.length === 0) {
+        showError('No valid log lines.');
+        return;
+      }
+      errorEl.textContent = '';
+      btnPaste.disabled = true;
+      try {
+        const res = await fetch('/classify-json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logs })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        showResults(data.results);
+        loadMetrics();
+      } catch (e) {
+        showError(e.message || 'Request failed');
+      } finally {
+        btnPaste.disabled = false;
+      }
+    });
+
+    // --- Upload: send CSV as form-data to POST /classify, parse CSV response into table ---
+    btnUpload.addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        showError('Choose a CSV file first.');
+        return;
+      }
+      errorEl.textContent = '';
+      btnUpload.disabled = true;
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch('/classify', { method: 'POST', body: form });
+        if (!res.ok) {
+          const t = await res.text();
+          let detail = t;
+          try { detail = JSON.parse(t).detail || t; } catch (_) {}
+          throw new Error(detail);
+        }
+        const csv = await res.text();
+        const rows = parseCsv(csv);
+        if (rows.length) showResults(rows);
+        else showError('No rows in response.');
+        loadMetrics();
+      } catch (e) {
+        showError(e.message || 'Upload failed');
+      } finally {
+        btnUpload.disabled = false;
+      }
+    });
+
+    // Parse CSV string (with quoted fields) into rows of { source, log_message, target_label }
+    function parseCsv(csv) {
+      const lines = csv.split(/\r?\n/).filter(Boolean);
+      if (lines.length < 2) return [];
+      const header = lines[0].toLowerCase();
+      const srcIdx = header.includes('source') ? header.split(',').indexOf('source') : 0;
+      const msgIdx = header.includes('log_message') ? header.split(',').indexOf('log_message') : 1;
+      const labelIdx = header.includes('target_label') ? header.split(',').indexOf('target_label') : 2;
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const parts = parseCsvLine(lines[i]);
+        if (parts.length >= 3) {
+          rows.push({
+            source: parts[srcIdx] || '',
+            log_message: parts[msgIdx] || '',
+            target_label: parts[labelIdx] || ''
+          });
+        }
+      }
+      return rows;
+    }
+    function parseCsvLine(line) {
+      const out = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') { inQ = !inQ; continue; }
+        if (!inQ && c === ',') { out.push(cur.trim()); cur = ''; continue; }
+        cur += c;
+      }
+      out.push(cur.trim());
+      return out;
+    }
+
+    loadMetrics();
+  </script>
+</body>
+</html>

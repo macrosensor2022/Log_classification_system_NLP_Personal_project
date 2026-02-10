@@ -1,0 +1,14 @@
+source,log_message,target_label
+ModernCRM,User User123 logged in.,User Action
+ModernCRM,Backup started at 2026-02-05 10:00:00.,System Notification
+ModernCRM,Backup completed successfully.,System Notification
+AnalyticsEngine,System updated to version 1.0.0.,System Notification
+AnalyticsEngine,File data_123.csv uploaded successfully by user 123.,System Notification
+ModernHR,Disk cleanup completed successfully.,System Notification
+ModernHR,System reboot initiated by user 123.,System Notification
+BillingSystem,Account with ID 123 created by user 123.,User Action
+BillingSystem,Hey bro chill yaa,Unclassified
+LegacyCRM,Critical system failure detected,(1) Workflow Error
+LegacyCRM,Workflow error: Backup process failed,(1) Workflow Error
+LegacyCRM,Deprecation warning: API v1 is deprecated,(2) Deprecation Warning
+LegacyCRM,Unknown log message,Unclassified

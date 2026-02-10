@@ -9,7 +9,7 @@ This module coordinates the classification pipeline using multiple methods:
 Author: Your Name
 Date: February 2026
 """
-
+import pandas as pd
 from processor_regex import classify_with_regex
 from processor_bert import classify_with_bert
 
@@ -32,17 +32,14 @@ def classify_logs(source, log_msg):
     Returns:
         str: The classification label
     """
-    # Special handling for legacy CRM logs
+    # LegacyCRM logs use the LLM for semantic understanding (workflow/deprecation edge cases)
     if source == "LegacyCRM":
-        # TODO: Implement LLM-based classification
-        # For now, fall through to standard classification
         label = classify_with_llm(log_msg)
-        pass
     else:
+        # Fast path: try regex first; if no match, use BERT embeddings + Logistic Regression
         label = classify_with_regex(log_msg)
         if label is None:
             label = classify_with_bert(log_msg)
-
     return label
 
 
@@ -63,31 +60,28 @@ def classify_batch(logs):
     return results
 
 
+def classify_csv(input_file):
+    """
+    Classify logs from a CSV file and save results.
+    
+    Args:
+        input_file (str): Path to input CSV file with columns 'source' and 'log_message'
+    """
+    df = pd.read_csv(input_file)
+    logs = list(zip(df["source"], df["log_message"]))
+    results = classify_batch(logs)
+    df["target_label"] = [label for _, _, label in results]
+    # Write from project root; path is relative when run from training/
+    output_file = "resources/output.csv"
+    df.to_csv(output_file, index=False)
+    print(f"Classification complete. Results saved to {output_file}")
 # ==================== TESTING ====================
 if __name__ == "__main__":
-    # Sample test logs from different sources
-    test_logs = [
-        ("ModernCRM", "User User123 logged in."),
-        ("ModernCRM", "Backup started at 2026-02-05 10:00:00."),
-        ("ModernCRM", "Backup completed successfully."),
-        ("AnalyticsEngine", "System updated to version 1.0.0."),
-        ("AnalyticsEngine", "File data_123.csv uploaded successfully by user 123."),
-        ("ModernHR", "Disk cleanup completed successfully."),
-        ("ModernHR", "System reboot initiated by user 123."),
-        ("BillingSystem", "Account with ID 123 created by user 123."),
-        ("BillingSystem", "Hey bro chill yaa"),  # Should use BERT
-        ("LegacyCRM", "Critical system failure detected"),  # Should use LLM (TODO)
-        ("LegacyCRM", "Workflow error: Backup process failed"),
-        ("LegacyCRM", "Deprecation warning: API v1 is deprecated"),
-        ("LegacyCRM", "Unknown log message"),
-    ]
-    
     print("=" * 100)
     print("MULTI-STAGE LOG CLASSIFICATION PIPELINE")
     print("=" * 100)
     
-    for source, log_msg in test_logs:
-        label = classify_logs(source, log_msg)
-        print(f"[{source:20}] {log_msg:<50} --> {label}")
+    # Classify logs from CSV file
+    classify_csv("resources/test.csv")
     
     print("=" * 100)

@@ -1,0 +1,24 @@
+source,log_message
+ModernCRM,User User123 logged in.
+ModernCRM,User User456 logged out.
+ModernCRM,Backup started at 2026-02-05 10:00:00.
+ModernCRM,Backup completed successfully.
+ModernCRM,Backup ended at 2026-02-05 11:30:00.
+AnalyticsEngine,System updated to version 1.0.0.
+AnalyticsEngine,System updated to version 2.1.3.
+AnalyticsEngine,File data_123.csv uploaded successfully by user 123.
+AnalyticsEngine,File report.xlsx uploaded successfully by user 99.
+ModernHR,Disk cleanup completed successfully.
+ModernHR,System reboot initiated by user 123.
+ModernHR,User User789 logged in.
+BillingSystem,Account with ID 123 created by user 123.
+BillingSystem,Account with ID 456 created by admin.
+BillingSystem,Hey bro chill yaa
+BillingSystem,Email service experiencing issues with sending
+ThirdPartyAPI,Unauthorized access to data was attempted
+ThirdPartyAPI,nova.osapi_compute.wsgi.server [req-abc123] GET /v2/servers/detail HTTP/1.1 status: 200
+LegacyCRM,Critical system failure detected
+LegacyCRM,Workflow error: Backup process failed
+LegacyCRM,Deprecation warning: API v1 is deprecated
+LegacyCRM,Unknown log message
+LegacyCRM,Scheduled job timeout after 300 seconds

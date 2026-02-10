@@ -1,256 +1,211 @@
-# Log Classification System Using NLP
+# Log Classification System (NLP)
 
-A multi-stage log classification system that uses Natural Language Processing techniques to automatically categorize system logs from various sources.
+A production-style, multi-stage log classification system that uses **Natural Language Processing** to automatically categorize system logs from multiple sources. The pipeline combines regex pattern matching, BERT-based embeddings, and an LLM for edge cases.
 
-## 📋 Project Overview
+---
 
-This project implements an intelligent log classification pipeline that combines three different approaches:
+## 📹 Demo Video
 
-1. **Regex-based Classification** - Fast pattern matching for well-defined log formats
-2. **BERT-based Classification** - ML model using sentence embeddings for complex patterns
-3. **LLM-based Classification** - Groq API with Llama 3.1 for edge cases and legacy system logs
+Watch a walkthrough of the project: setup, classification pipeline, API, and frontend.
 
-## 🎯 Classification Categories
+<!-- Embed: replace with your hosted URL if you prefer; local path works when viewing in browser or VS Code -->
+[**▶ Watch: Log Classification Demo**](docs/Log_classification_video.mp4)
 
-The system classifies logs into 9 categories:
+<video src="docs/Log_classification_video.mp4" controls width="720" title="Log Classification Demo"></video>
 
-- **User Action** - User login/logout, account creation
-- **System Notification** - Backups, updates, file uploads
-- **HTTP Status** - API request/response logs
-- **Critical Error** - Severe system failures
-- **Error** - General errors
-- **Security Alert** - Unauthorized access attempts
-- **Resource Usage** - Memory, CPU, disk usage logs
-- **Workflow Error** - Process/workflow failures
-- **Deprecation Warning** - Deprecated feature usage
+*If the video does not render above, open [docs/Log_classification_video.mp4](docs/Log_classification_video.mp4) directly.*
 
-## 🏗️ Project Structure
+---
+
+## 📋 Table of Contents
+
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Project Structure](#-project-structure)
+- [Prerequisites & Installation](#-prerequisites--installation)
+- [Configuration](#-configuration)
+- [Usage](#-usage)
+- [API Reference](#-api-reference)
+- [Retraining the Model](#-retraining-the-model)
+- [Documentation](#-documentation)
+- [License & Author](#-license--author)
+
+---
+
+## ✨ Features
+
+- **Multi-stage classification**: Regex → BERT (embeddings) → LLM (Groq), with routing by log source.
+- **REST API**: Upload CSV or send JSON; get classified results and metrics.
+- **Web UI**: Paste logs or upload CSV in the browser and view results in a table.
+- **Metrics**: Per-label counts and request latency via `/metrics`.
+- **Retraining**: Add new labeled examples and retrain the BERT classifier via API or CLI.
+- **Sample data**: Ready-to-use sample logs for testing (see `resources/sample_logs.csv`).
+
+---
+
+## 🏗 Architecture
+
+```
+                    ┌─────────────────────────────────────────────────────────┐
+                    │                    Log Classification API                 │
+                    │                     (FastAPI + Frontend)                   │
+                    └───────────────────────────────┬───────────────────────────┘
+                                                    │
+                    ┌───────────────────────────────▼───────────────────────────┐
+                    │                  Multi-Stage Pipeline (classify.py)        │
+                    └───────────────────────────────┬───────────────────────────┘
+                                                    │
+         ┌──────────────────────────────────────────┼──────────────────────────────────────────┐
+         │                                          │                                           │
+         ▼                                          ▼                                           ▼
+┌─────────────────┐                    ┌─────────────────────┐                    ┌─────────────────────┐
+│  source ==       │                    │  Regex patterns      │                    │  BERT classifier     │
+│  "LegacyCRM"?   │── Yes ────────────►│  (processor_regex)   │── No match ───────►│  (processor_bert)   │
+│                 │                    │  User Action,        │                    │  SentenceTransformer│
+│                 │── No ─────────────►│  System Notif., etc. │                    │  + LogisticRegression│
+└─────────────────┘                    └─────────────────────┘                    └─────────────────────┘
+         │                                          │
+         │ Yes                                      │ Match
+         ▼                                          ▼
+┌─────────────────┐                    ┌─────────────────────┐
+│  LLM (Groq)     │                    │  Return label         │
+│  processor_llm  │                    └─────────────────────┘
+│  Workflow Error,│
+│  Deprecation   │
+└─────────────────┘
+```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a more detailed breakdown.
+
+---
+
+## 📁 Project Structure
 
 ```
 Log_classification_system_NLP_Personal_project/
-├── training/
-│   ├── training.ipynb           # Model training and data exploration
-│   ├── processor_regex.py       # Regex-based classifier
-│   ├── processor_bert.py        # BERT-based classifier
-│   ├── processor_llm.py         # LLM-based classifier (Groq API)
-│   ├── classify.py              # Multi-stage classification pipeline
-│   └── .env                     # Environment variables (API keys)
+├── server.py                 # FastAPI app: /classify, /classify-json, /metrics, /retrain
+├── main.py                   # Optional entry point
+├── requirements.txt         # Python dependencies
+├── synthetic_logs.csv       # Original training dataset
+├── docs/
+│   ├── Log_classification_video.mp4   # Demo video
+│   └── ARCHITECTURE.md                # Architecture and design notes
+├── static/
+│   └── index.html           # Web UI: paste logs or upload CSV
+├── resources/
+│   ├── test.csv             # Minimal test CSV
+│   ├── sample_logs.csv      # Sample logs for testing
+│   └── output.csv           # Last classification output (written by API)
 ├── models/
-│   └── log_classification_model.pkl  # Trained Logistic Regression model
-├── synthetic_logs.csv           # Training dataset (2,410 logs)
-├── requirements.txt             # Python dependencies
-├── main.py                      # Entry point (to be implemented)
-├── README.md                    # Project documentation
-└── .gitignore                   # Git ignore file
+│   └── log_classification_model.pkl  # Trained BERT-era classifier (joblib)
+└── training/
+    ├── training.ipynb       # Notebook: data load, clustering, regex, BERT training
+    ├── classify.py           # Multi-stage pipeline + classify_batch / classify_csv
+    ├── processor_regex.py    # Regex-based classifier
+    ├── processor_bert.py     # BERT embeddings + Logistic Regression
+    ├── processor_llm.py      # Groq LLM for LegacyCRM / edge cases
+    ├── retrain.py            # Script to retrain from CSV (source, log_message, target_label)
+    └── .env                  # GROQ_API_KEY (not committed)
 ```
 
-## 🚀 Getting Started
+---
 
-### Prerequisites
+## 🔧 Prerequisites & Installation
 
-```bash
-pip install pandas
-pip install numpy
-pip install scikit-learn
-pip install sentence-transformers
-pip install joblib
-```
+- **Python**: 3.9+ recommended.
+- **Install dependencies**:
 
-### Installation
-
-1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd Log_classification_system_NLP_Personal_project
-```
-
-2. Install dependencies:
-```bash
 pip install -r requirements.txt
 ```
 
-3. Set up Groq API (for LLM classifier):
-   - Get a free API key from [console.groq.com](https://console.groq.com)
-   - Create a `.env` file in the `training/` directory:
-   ```bash
-   cd training
-   echo "GROQ_API_KEY=your_api_key_here" > .env
-   ```
+---
 
-4. Test the classifiers:
+## ⚙ Configuration
+
+- **Groq API (LLM)**  
+  Create `training/.env` with:
+
+  ```
+  GROQ_API_KEY=your_groq_api_key_here
+  ```
+
+  Get a key at [console.groq.com](https://console.groq.com).
+
+- **Paths**  
+  The server and training scripts assume they are run from the project root. Model path: `models/log_classification_model.pkl`.
+
+---
+
+## 🚀 Usage
+
+### 1. Run the API and open the UI
+
 ```bash
-# Test regex classifier
-python training/processor_regex.py
+uvicorn server:app --reload
+```
 
-# Test BERT classifier
-python training/processor_bert.py
+- **Web UI**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/) — paste logs or upload CSV, then view the results table.
+- **API docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-# Test LLM classifier
-python training/processor_llm.py
+### 2. Classify from the command line (no server)
 
-# Test full pipeline
+```bash
+# Classify resources/test.csv and write resources/output.csv
 cd training
 python classify.py
 ```
 
-## 📊 Dataset
+### 3. Test with sample logs
 
-- **Source**: `synthetic_logs.csv`
-- **Total Records**: 2,410 logs
-- **Sources**: ModernCRM, AnalyticsEngine, ModernHR, BillingSystem, ThirdPartyAPI, LegacyCRM
-- **Features**:
-  - `timestamp`: Log timestamp
-  - `source`: Source system
-  - `log_message`: The actual log text
-  - `target_label`: Ground truth classification
-
-### Category Distribution
-
-```
-HTTP Status         : 1,017 logs (42%)
-Security Alert      : 371 logs (15%)
-System Notification : 356 logs (15%)
-Error               : 177 logs (7%)
-Resource Usage      : 177 logs (7%)
-Critical Error      : 161 logs (7%)
-User Action         : 144 logs (6%)
-Workflow Error      : 4 logs (<1%)
-Deprecation Warning : 3 logs (<1%)
-```
-
-## 🧠 Model Architecture
-
-### 1. Regex Classifier (`processor_regex.py`)
-
-- **Speed**: Very Fast
-- **Accuracy**: 100% for matched patterns
-- **Use Case**: Well-defined log patterns
-- **Patterns**: 8 regex patterns for User Actions and System Notifications
-
-### 2. BERT Classifier (`processor_bert.py`)
-
-- **Model**: `all-MiniLM-L6-v2` (SentenceTransformer)
-- **Embedding Size**: 384 dimensions
-- **Classifier**: Logistic Regression
-- **Training Size**: 1,687 logs
-- **Test Size**: 723 logs
-- **Accuracy**: 99% on test set
-- **Confidence Threshold**: 50% (returns "Unclassified" if below)
-
-### 3. LLM Classifier (`processor_llm.py`)
-
-- **API**: Groq (groq.com)
-- **Model**: `llama-3.1-70b-versatile`
-- **Use Case**: Edge cases, Workflow Errors, Deprecation Warnings
-- **Categories**: Workflow Error, Deprecation Warning, Unclassified
-- **Authentication**: Requires GROQ_API_KEY in `.env` file
-- **Advantage**: Semantic understanding of complex log patterns
-
-### 4. Multi-stage Pipeline (`classify.py`)
-
-The classification pipeline follows this logic:
-
-```
-Input Log
-    ↓
-Is source "LegacyCRM"?
-    ├── Yes → Use LLM → Return Label
-    └── No  → Try Regex
-                ↓
-        Regex Matched?
-            ├── Yes → Return Label
-            └── No  → Use BERT → Return Label
-```
-
-## 📈 Model Performance
-
-### BERT Classifier Results
-
-```
-                     precision    recall  f1-score   support
-
-     Critical Error       0.96      0.98      0.97        48
-              Error       1.00      0.94      0.97        53
-        HTTP Status       1.00      1.00      1.00       305
-     Resource Usage       1.00      1.00      1.00        53
-     Security Alert       0.99      1.00      1.00       112
-System Notification       0.97      1.00      0.99       107
-        User Action       1.00      1.00      1.00        43
-
-           accuracy                           0.99       723
-```
-
-## 💡 Usage Examples
-
-### Using Individual Classifiers
-
-```python
-from training.processor_regex import classify_with_regex
-from training.processor_bert import classify_with_bert
-
-# Regex classification (fast, for known patterns)
-log = "User User123 logged in."
-label = classify_with_regex(log)
-print(label)  # Output: User Action
-
-# BERT classification (ML-based, for complex patterns)
-log = "Multiple failed authentication attempts detected"
-label = classify_with_bert(log)
-print(label)  # Output: Security Alert
-```
-
-### Using the Full Pipeline
-
-```python
-from training.classify import classify_logs
-
-# Classify a log from ModernCRM
-source = "ModernCRM"
-log_msg = "Backup completed successfully."
-label = classify_logs(source, log_msg)
-print(f"{log_msg} --> {label}")
-# Output: Backup completed successfully. --> System Notification
-```
-
-## 🔧 Model Training
-
-The model was trained using the following approach:
-
-1. **Data Loading**: Load 2,410 logs from `synthetic_logs.csv`
-2. **Embedding Generation**: Convert logs to 384-dim vectors using SentenceTransformer
-3. **Train/Test Split**: 70/30 split with stratification
-4. **Model Training**: Logistic Regression with max_iter=1000
-5. **Evaluation**: Achieved 99% accuracy on test set
-6. **Model Saving**: Saved to `models/log_classification_model.pkl`
-
-To retrain the model, run the cells in `training/training.ipynb`.
-
-## 📝 TODO / Future Enhancements
-
-- [x] Implement LLM-based classification for LegacyCRM logs (✅ Completed with Groq API)
-- [ ] Add real-time log streaming capability
-- [ ] Create a web dashboard for log monitoring
-- [ ] Add support for custom regex patterns
-- [ ] Implement model retraining pipeline
-- [ ] Add logging and error handling
-- [ ] Create API endpoints for classification service
-- [ ] Add unit tests
-- [ ] Deploy as a microservice
-
-## 🤝 Contributing
-
-This is a personal project. Contributions, issues, and feature requests are welcome!
-
-## 📄 License
-
-This project is for educational purposes.
-
-## 👤 Author
-
-**Your Name**
-- Project: Log Classification System
-- Date: February 2026
+- **Upload**: Use `resources/sample_logs.csv` in the web UI or via Postman (POST `/classify` with form-data key `file`).
+- **Paste**: Copy the sample lines from the README or from `resources/sample_logs.csv` into the “Paste logs” tab.
 
 ---
 
-**Last Updated**: February 5, 2026
+## 📡 API Reference
+
+| Method | Endpoint         | Description |
+|--------|------------------|-------------|
+| `GET`  | `/`              | Serve web UI (paste/upload, results table). |
+| `POST` | `/classify`      | Upload CSV (`source`, `log_message`). Returns classified CSV. |
+| `GET`  | `/classify`      | Download last classified CSV. |
+| `POST` | `/classify-json` | JSON body `{ "logs": [ { "source", "log_message" } ] }`. Returns `{ "results": [ { "source", "log_message", "target_label" } ] }`. |
+| `GET`  | `/metrics`       | Counts per label, total requests, average latency (ms). |
+| `POST` | `/retrain`       | Upload CSV with `source`, `log_message`, `target_label` to merge into dataset and retrain BERT model. |
+
+All responses use standard HTTP status codes. Errors return JSON with a `detail` field when applicable.
+
+---
+
+## 🔄 Retraining the Model
+
+- **Via API**: POST a CSV (columns `source`, `log_message`, `target_label`) to `/retrain` (form-data, key `file`). The server merges with `dataset/labeled_logs.csv` (or seeds from `synthetic_logs.csv` if needed) and retrains the BERT classifier.
+- **Via CLI**:
+
+  ```bash
+  python -m training.retrain
+  ```
+
+  This uses `dataset/labeled_logs.csv` by default. To use another file:
+
+  ```bash
+  python -m training.retrain path/to/labeled.csv
+  ```
+
+---
+
+## 📚 Documentation
+
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — Pipeline design, components, and data flow.
+- **Inline comments** — Key logic in `server.py`, `training/classify.py`, `training/processor_*.py`, `training/retrain.py`, and `static/index.html` is commented for maintainability.
+
+---
+
+## 📄 License & Author
+
+This project is for **educational and portfolio use**.  
+**Author**: Your Name  
+**Last updated**: February 2026

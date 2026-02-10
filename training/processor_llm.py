@@ -57,9 +57,9 @@ def classify_with_llm(log_message):
     Log message: {log_message}
     '''
     
-    # Call Groq API with Llama model
+    # Call Groq API; model name may change — see https://console.groq.com/docs/models
     response = groq.chat.completions.create(
-        model="llama-3.1-70b-versatile",  # Updated to supported model
+        model="llama-3.1-8b-instant",
         messages=[
             {
                 "role": "user",
