@@ -8,7 +8,7 @@ ModernHR,Disk cleanup completed successfully.,System Notification
 ModernHR,System reboot initiated by user 123.,System Notification
 BillingSystem,Account with ID 123 created by user 123.,User Action
 BillingSystem,Hey bro chill yaa,Unclassified
-LegacyCRM,Critical system failure detected,(1) Workflow Error
+LegacyCRM,Critical system failure detected,Workflow Error
 LegacyCRM,Workflow error: Backup process failed,(1) Workflow Error
-LegacyCRM,Deprecation warning: API v1 is deprecated,(2) Deprecation Warning
+LegacyCRM,Deprecation warning: API v1 is deprecated,(2)
 LegacyCRM,Unknown log message,Unclassified
